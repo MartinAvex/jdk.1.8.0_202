@@ -1,38 +1,3 @@
-/*
- * ORACLE PROPRIETARY/CONFIDENTIAL. Use is subject to license terms.
- *
- *
- *
- *
- *
- *
- *
- *
- *
- *
- *
- *
- *
- *
- *
- *
- *
- *
- *
- *
- */
-
-/*
- *
- *
- *
- *
- *
- * Written by Doug Lea with assistance from members of JCP JSR-166
- * Expert Group and released to the public domain, as explained at
- * http://creativecommons.org/publicdomain/zero/1.0/
- */
-
 package java.util.concurrent;
 
 import java.security.AccessControlContext;
@@ -47,13 +12,27 @@ import java.util.*;
 public class ThreadPoolExecutor extends AbstractExecutorService {
 
     /**
+     * 线程池内部使用一个变量维护两个值：
+     *  运行状态（runState）
+     *  线程数量（workerCount）
+     * 在具体的实现中，线程池将这两个关键参数的维护放在了一起
      *
+     * AtomicInteger这一类型字段ctl，是对线程池的运行状态和线程池中有效线程的数量进行控制的一个字段，它同时包含两部分信息：
+     *  线程池的运行状态（runState）和线程池内有效线程的数量（workerCount），高3位保存runState，低29位保存workerCount，两个变量之间互不干扰。
+     * 用一个变量去存储两个值，可避免在做相关决策时，出现不一致的情况，不必为了维护两者的一致，而占用锁资源。
      */
     private final AtomicInteger ctl = new AtomicInteger(ctlOf(RUNNING, 0));
     private static final int COUNT_BITS = Integer.SIZE - 3;
     private static final int CAPACITY   = (1 << COUNT_BITS) - 1;
 
-    // runState is stored in the high-order bits
+    /**
+     * 运行状态
+     *  RUNNING：能接受新提交的任务，并且也能处理阻塞队列中的任务
+     *  SHUTDOWN：关闭状态，不在接受新提交的任务，但却可以继续处理阻塞队列中已保存的任务
+     *  STOP：不能接受新任务，也不处理队列中的任务，会中断正在处理任务的线程
+     *  TIDYING：所有的任务都已经终止了，workerCount(有效线程数)为0
+     *  TERMINATED：在terminated()方法执行完后进入该状态
+     */
     private static final int RUNNING    = -1 << COUNT_BITS;
     private static final int SHUTDOWN   =  0 << COUNT_BITS;
     private static final int STOP       =  1 << COUNT_BITS;
